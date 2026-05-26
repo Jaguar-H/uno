@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import GameTable from "./components/GameTable";
 
 const SERVER_URL = "http://localhost:4000";
 
@@ -7,6 +8,8 @@ function App() {
   const [username, setUsername] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
   const [status, setStatus] = useState("loading");
+  const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [socket, setSocket] = useState(null);
   const [room, setRoom] = useState(null);
   const [joinCode, setJoinCode] = useState("");
@@ -27,6 +30,9 @@ function App() {
       return;
     }
 
+    setConnecting(true);
+    setStatus("connecting");
+
     const client = io(SERVER_URL, {
       autoConnect: true,
       transports: ["websocket"],
@@ -35,11 +41,20 @@ function App() {
     client.on("connect", () => {
       setStatus("ready");
       setError("");
+      setConnected(true);
+      setConnecting(false);
     });
 
     client.on("connect_error", () => {
       setStatus("offline");
       setError("Unable to connect to the game server.");
+      setConnected(false);
+      setConnecting(false);
+    });
+
+    client.on("disconnect", () => {
+      setConnected(false);
+      setStatus("offline");
     });
 
     client.on("room:updated", (updatedRoom) => {
@@ -62,7 +77,7 @@ function App() {
   };
 
   const handleCreateRoom = () => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -85,7 +100,7 @@ function App() {
   };
 
   const handleJoinRoom = () => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -114,7 +129,7 @@ function App() {
   };
 
   const handleStartGame = () => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -130,7 +145,7 @@ function App() {
   };
 
   const handlePlayCard = (cardId) => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -150,7 +165,7 @@ function App() {
   };
 
   const handleDrawCard = () => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -166,7 +181,7 @@ function App() {
   };
 
   const handleChooseColor = (color) => {
-    if (!socket || !socket.connected) {
+    if (!socket || !connected) {
       setError("Socket connection is not ready yet.");
       return;
     }
@@ -209,6 +224,11 @@ function App() {
   const winner = room?.gameState?.winner
     ? room.players.find((player) => player.id === room.gameState.winner)
     : null;
+  const connectionLabel = connecting
+    ? "Connecting to server..."
+    : connected
+    ? "Connected to server"
+    : "Server offline";
   const handCount = currentUser?.hand?.length ?? 0;
   const deckCount = room?.gameState?.deck?.length ?? 0;
   const discardCount = room?.gameState?.discardPile?.length ?? 0;
@@ -221,7 +241,7 @@ function App() {
     <div className="screen">
       <div className="card">
         <h1>UNO Multiplayer</h1>
-        <div className="status">Server status: {status}</div>
+        <div className="status">{connectionLabel}</div>
 
         {!loggedIn
           ? (
@@ -317,99 +337,15 @@ function App() {
                   </div>
                 )
                 : (
-                  <div className="section">
-                    <h2>Game board</h2>
-                    <div className="info">
-                      Current turn: {currentPlayer?.username ?? "N/A"}
-                    </div>
-                    <div className="game-summary">
-                      <div>
-                        Top card:{" "}
-                        <strong>{room.gameState.currentCard.value}</strong> (
-                        {room.gameState.currentCard.color})
-                      </div>
-                      <div>Current color: {room.gameState.currentColor}</div>
-                      <div>Deck: {deckCount} cards</div>
-                      <div>Discard: {discardCount} cards</div>
-                      <div>Your hand: {handCount} cards</div>
-                    </div>
-
-                    {needsColorSelection && (
-                      <div className="color-picker">
-                        <div className="info">
-                          {isColorChooser
-                            ? "Choose a color for the wild card:"
-                            : "Waiting for the wild card player to choose a color..."}
-                        </div>
-                        {isColorChooser && (
-                          <div className="color-options">
-                            <button
-                              className="color-btn color-btn-red"
-                              onClick={() => handleChooseColor("red")}
-                              disabled={selectingColor}
-                            >
-                              Red
-                            </button>
-                            <button
-                              className="color-btn color-btn-yellow"
-                              onClick={() => handleChooseColor("yellow")}
-                              disabled={selectingColor}
-                            >
-                              Yellow
-                            </button>
-                            <button
-                              className="color-btn color-btn-green"
-                              onClick={() => handleChooseColor("green")}
-                              disabled={selectingColor}
-                            >
-                              Green
-                            </button>
-                            <button
-                              className="color-btn color-btn-blue"
-                              onClick={() => handleChooseColor("blue")}
-                              disabled={selectingColor}
-                            >
-                              Blue
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="section">
-                      <div className="info">
-                        {room.status === "ended"
-                          ? `Winner: ${winner?.username ?? "Unknown"}`
-                          : isYourTurn
-                          ? "Your turn: play a card or draw."
-                          : `Waiting for ${currentPlayer?.username}'s turn.`}
-                      </div>
-                      {room.status !== "ended" && (
-                        <div className="hand-grid">
-                          {currentUser?.hand?.map((card) => (
-                            <button
-                              key={card.id}
-                              className={`card-item card-${card.color}`}
-                              onClick={() => handlePlayCard(card.id)}
-                              disabled={!isYourTurn}
-                            >
-                              <div className="card-value">{card.value}</div>
-                              <div className="card-color">{card.color}</div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {room.status !== "ended" && (
-                        <button
-                          className="button"
-                          onClick={handleDrawCard}
-                          disabled={!isYourTurn}
-                        >
-                          Draw card
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <GameTable
+                    room={room}
+                    username={username}
+                    onPlayCard={handlePlayCard}
+                    onDrawCard={handleDrawCard}
+                    onChooseColor={handleChooseColor}
+                    isColorChooser={isColorChooser}
+                    selectingColor={selectingColor}
+                  />
                 )}
             </div>
           )
@@ -419,7 +355,7 @@ function App() {
                 <button
                   className="button"
                   onClick={handleCreateRoom}
-                  disabled={creating || !socket?.connected}
+                  disabled={creating || !connected}
                 >
                   {creating ? "Creating room..." : "Create room"}
                 </button>
@@ -435,7 +371,7 @@ function App() {
                 <button
                   className="button"
                   onClick={handleJoinRoom}
-                  disabled={joining || !socket?.connected}
+                  disabled={joining || !connected}
                 >
                   {joining ? "Joining..." : "Join room"}
                 </button>

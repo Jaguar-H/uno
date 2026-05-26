@@ -1,12 +1,25 @@
 :root {
   font-family: Inter, system-ui, sans-serif;
-  color: #1f2937;
-  background: #f3f4f6;
+  color: #f8fafc;
+  background: #760000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.08), transparent 16%),
+    linear-gradient(180deg, #850000 0%, #4f0505 100%);
+  color: #f8fafc;
 }
 
 .screen {
@@ -17,194 +30,291 @@ body {
   padding: 24px;
 }
 
-.card {
+.game-screen {
   width: 100%;
-  max-width: 420px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  max-width: 100%;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.screen.playing {
+  padding: 0;
+}
+
+.card {
+  width: min(100%, 900px);
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 28px;
+  box-shadow: 0 42px 120px rgba(0, 0, 0, 0.38);
   padding: 32px;
-  text-align: center;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 h1 {
-  margin: 0 0 16px;
-  font-size: 2rem;
+  margin: 0;
+  font-size: clamp(2rem, 2.7vw, 3rem);
+  letter-spacing: -0.04em;
+  color: #fff;
 }
 
 .status {
-  color: #6b7280;
+  color: rgba(255, 255, 255, 0.78);
+  margin-top: 8px;
   margin-bottom: 24px;
+  font-size: 0.95rem;
 }
 
-.form {
+.form,
+.panel,
+.room-header,
+.game-info,
+.hand-grid,
+.color-options,
+.control-row {
   display: grid;
+}
+
+.form,
+.panel,
+.color-options,
+.control-row {
   gap: 12px;
 }
 
 .input,
-.button {
+.button,
+.color-btn {
   width: 100%;
-  padding: 12px 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid transparent;
   font-size: 1rem;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
 }
 
 .input {
-  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
 }
 
 .button {
-  background: #2563eb;
-  color: white;
+  background: #f9a8d4;
+  color: #881337;
   border-color: transparent;
   cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
-.button:hover {
-  background: #1d4ed8;
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #f472b6;
 }
 
-.welcome {
-  color: #111827;
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .room-header {
-  display: flex;
-  justify-content: space-between;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
   align-items: center;
-  margin-bottom: 16px;
-}
-
-.room-label {
-  font-size: 0.9rem;
-  color: #6b7280;
 }
 
 .room-code {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
+}
+
+.room-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe4e6;
+  font-weight: 700;
 }
 
 .section {
-  text-align: left;
-  margin-top: 16px;
-}
-
-.panel {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
+  margin-top: 24px;
 }
 
 .player-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  color: #111827;
+  display: grid;
+  gap: 10px;
 }
 
-.player-list li {
-  padding: 8px 0;
-  border-bottom: 1px solid #e5e7eb;
+.player-item {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.room-status {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 600;
-  align-self: flex-start;
+.player-item.active-turn {
+  background: rgba(251, 113, 133, 0.16);
+  border-color: rgba(251, 146, 148, 0.32);
+}
+
+.player-name {
+  font-weight: 700;
+  color: #fff;
+}
+
+.turn-indicator {
+  margin-right: 6px;
+  color: #f472b6;
+}
+
+.host-badge,
+.hand-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.host-badge {
+  background: rgba(251, 190, 209, 0.22);
+  color: #7f1d1d;
+}
+
+.hand-count {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
 }
 
 .game-summary {
-  margin-top: 12px;
+  margin-top: 16px;
   display: grid;
-  gap: 10px;
-  padding: 14px;
-  background: #f9fafb;
-  border-radius: 14px;
+  gap: 12px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.info {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.96rem;
+}
+
+.info-row {
+  color: #f8fafc;
+  font-weight: 700;
 }
 
 .hand-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
 }
 
 .card-item {
-  min-height: 84px;
-  border: none;
-  border-radius: 14px;
+  min-height: 100px;
+  border: 1px solid transparent;
+  border-radius: 18px;
   color: white;
-  padding: 12px 10px;
+  padding: 14px;
   display: grid;
   place-items: center;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-item:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
 }
 
 .card-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.card-red {
-  background: #dc2626;
-}
-
-.card-yellow {
-  background: #eab308;
-  color: #111827;
-}
-
-.card-green {
-  background: #16a34a;
-}
-
-.card-blue {
-  background: #2563eb;
-}
-
-.card-black {
-  background: #111827;
-}
-
-.color-picker {
-  margin-top: 16px;
-  padding: 16px;
-  background: #f0fdf4;
-  border-radius: 14px;
-  border: 2px solid #22c55e;
-}
-
-.color-options {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.color-btn {
-  height: 60px;
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.color-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.color-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+.card-red {
+  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.card-yellow {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  color: #0f172a;
+}
+
+.card-green {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+}
+
+.card-blue {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.card-black {
+  background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+}
+
+.card-value {
+  font-size: 1.4rem;
+}
+
+.ui-error {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fee2e2;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 18px;
+  padding: 14px 22px;
+  backdrop-filter: blur(12px);
+  z-index: 20;
+}
+
+.card-color {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.color-picker {
+  margin-top: 22px;
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 18px;
+  border: 1px solid #dbeafe;
+}
+
+.color-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.color-btn {
+  min-height: 54px;
+  font-weight: 700;
 }
 
 .color-btn-red {
@@ -212,8 +322,8 @@ h1 {
 }
 
 .color-btn-yellow {
-  background: #eab308;
-  color: #111827;
+  background: #f59e0b;
+  color: #0f172a;
 }
 
 .color-btn-green {
@@ -224,13 +334,20 @@ h1 {
   background: #2563eb;
 }
 
-.info {
-  margin-top: 12px;
-  color: #4b5563;
+.error {
+  margin-top: 18px;
+  color: #b91c1c;
+  font-weight: 700;
 }
 
-.error {
-  margin-top: 16px;
-  color: #b91c1c;
-  font-weight: 600;
+@media (max-width: 640px) {
+  .card {
+    padding: 24px;
+  }
+
+  .room-header,
+  .game-summary,
+  .player-item {
+    grid-template-columns: 1fr;
+  }
 }
