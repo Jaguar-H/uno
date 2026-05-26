@@ -165,6 +165,29 @@ function App() {
     });
   };
 
+  const handleChooseColor = (color) => {
+    if (!socket || !socket.connected) {
+      setError("Socket connection is not ready yet.");
+      return;
+    }
+
+    setSelectingColor(true);
+    setError("");
+
+    socket.emit(
+      "game:choose-color",
+      { color },
+      ({ error: chooseError, room: updatedRoom }) => {
+        setSelectingColor(false);
+        if (chooseError) {
+          setError(chooseError);
+          return;
+        }
+        setRoom(updatedRoom);
+      },
+    );
+  };
+
   const currentPlayer = room?.gameState
     ? room.players[room.gameState.currentTurnIndex]
     : null;
@@ -174,6 +197,11 @@ function App() {
   const isHost = Boolean(currentUser?.isHost);
   const isYourTurn = Boolean(
     room?.gameState && currentUser && currentPlayer?.id === currentUser.id,
+  );
+  const pendingChooserId = room?.gameState?.pendingAction?.playerId;
+  const isColorChooser = Boolean(
+    room?.gameState?.pendingAction?.type === "choose-color" &&
+      currentUser?.id === pendingChooserId,
   );
   const needsColorSelection = Boolean(
     room?.gameState?.pendingAction?.type === "choose-color",
@@ -195,214 +223,225 @@ function App() {
         <h1>UNO Multiplayer</h1>
         <div className="status">Server status: {status}</div>
 
-        {!loggedIn ? (
-          <form onSubmit={handleLogin} className="form">
-            <input
-              type="text"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="Enter a username"
-              className="input"
-            />
-            <button type="submit" className="button">
-              Continue
-            </button>
-          </form>
-        ) : room ? (
-          <div>
-            <div className="room-header">
-              <div>
-                <div className="room-label">Room code</div>
-                <div className="room-code">{room.code}</div>
-              </div>
-              <div className="room-status">
-                {room.status === "playing"
-                  ? "Game in progress"
-                  : "Waiting for players"}
-              </div>
-            </div>
-
-            <div className="section">
-              <h2>Players</h2>
-              <ul className="player-list">
-                {room.players.map((player, index) => {
-                  const isCurrentTurn =
-                    room.gameState && room.gameState.currentTurnIndex === index;
-                  return (
-                    <li
-                      key={player.id}
-                      className={`player-item ${isCurrentTurn ? "active-turn" : ""}`}
-                    >
-                      <div className="player-info">
-                        <span className="player-name">
-                          {isCurrentTurn && (
-                            <span className="turn-indicator">→ </span>
-                          )}
-                          {player.username}
-                        </span>
-                        {room.status === "playing" && (
-                          <span className="hand-count">
-                            {player.hand.length} card
-                            {player.hand.length !== 1 ? "s" : ""}
-                          </span>
-                        )}
-                        {player.isHost && (
-                          <span className="host-badge">Host</span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            {room.status === "playing" && room.gameState && (
-              <div className="section game-info">
-                <div className="info-row">
-                  <span>
-                    Direction:{" "}
-                    {room.gameState.direction === 1
-                      ? "→ Clockwise"
-                      : "← Counter-clockwise"}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {room.status === "waiting" ? (
-              <div className="section">
-                <div className="info">
-                  {room.players.length >= 2
-                    ? "Ready to start the game when the host presses Start."
-                    : "Need at least 2 players to start the game."}
-                </div>
-                {isHost && room.players.length >= 2 && (
-                  <button className="button" onClick={handleStartGame}>
-                    Start game
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="section">
-                <h2>Game board</h2>
-                <div className="info">
-                  Current turn: {currentPlayer?.username ?? "N/A"}
-                </div>
-                <div className="game-summary">
-                  <div>
-                    Top card:{" "}
-                    <strong>{room.gameState.currentCard.value}</strong> (
-                    {room.gameState.currentCard.color})
-                  </div>
-                  <div>Current color: {room.gameState.currentColor}</div>
-                  <div>Deck: {deckCount} cards</div>
-                  <div>Discard: {discardCount} cards</div>
-                  <div>Your hand: {handCount} cards</div>
-                </div>
-
-                {needsColorSelection && (
-                  <div className="color-picker">
-                    <div className="info">
-                      Choose a color for the wild card:
-                    </div>
-                    <div className="color-options">
-                      <button
-                        className="color-btn color-btn-red"
-                        onClick={() => handleChooseColor("red")}
-                        disabled={selectingColor}
-                      >
-                        Red
-                      </button>
-                      <button
-                        className="color-btn color-btn-yellow"
-                        onClick={() => handleChooseColor("yellow")}
-                        disabled={selectingColor}
-                      >
-                        Yellow
-                      </button>
-                      <button
-                        className="color-btn color-btn-green"
-                        onClick={() => handleChooseColor("green")}
-                        disabled={selectingColor}
-                      >
-                        Green
-                      </button>
-                      <button
-                        className="color-btn color-btn-blue"
-                        onClick={() => handleChooseColor("blue")}
-                        disabled={selectingColor}
-                      >
-                        Blue
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="section">
-                  <div className="info">
-                    {room.status === "ended"
-                      ? `Winner: ${winner?.username ?? "Unknown"}`
-                      : isYourTurn
-                        ? "Your turn: play a card or draw."
-                        : `Waiting for ${currentPlayer?.username}'s turn.`}
-                  </div>
-                  {room.status !== "ended" && (
-                    <div className="hand-grid">
-                      {currentUser?.hand?.map((card) => (
-                        <button
-                          key={card.id}
-                          className={`card-item card-${card.color}`}
-                          onClick={() => handlePlayCard(card.id)}
-                          disabled={!isYourTurn}
-                        >
-                          <div className="card-value">{card.value}</div>
-                          <div className="card-color">{card.color}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {room.status !== "ended" && (
-                    <button
-                      className="button"
-                      onClick={handleDrawCard}
-                      disabled={!isYourTurn}
-                    >
-                      Draw card
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="section">
-            <div className="panel">
-              <button
-                className="button"
-                onClick={handleCreateRoom}
-                disabled={creating || !socket?.connected}
-              >
-                {creating ? "Creating room..." : "Create room"}
-              </button>
-            </div>
-            <div className="panel">
+        {!loggedIn
+          ? (
+            <form onSubmit={handleLogin} className="form">
               <input
                 type="text"
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value)}
-                placeholder="Enter room code"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Enter a username"
                 className="input"
               />
-              <button
-                className="button"
-                onClick={handleJoinRoom}
-                disabled={joining || !socket?.connected}
-              >
-                {joining ? "Joining..." : "Join room"}
+              <button type="submit" className="button">
+                Continue
               </button>
+            </form>
+          )
+          : room
+          ? (
+            <div>
+              <div className="room-header">
+                <div>
+                  <div className="room-label">Room code</div>
+                  <div className="room-code">{room.code}</div>
+                </div>
+                <div className="room-status">
+                  {room.status === "playing"
+                    ? "Game in progress"
+                    : "Waiting for players"}
+                </div>
+              </div>
+
+              <div className="section">
+                <h2>Players</h2>
+                <ul className="player-list">
+                  {room.players.map((player, index) => {
+                    const isCurrentTurn = room.gameState &&
+                      room.gameState.currentTurnIndex === index;
+                    return (
+                      <li
+                        key={player.id}
+                        className={`player-item ${
+                          isCurrentTurn ? "active-turn" : ""
+                        }`}
+                      >
+                        <div className="player-info">
+                          <span className="player-name">
+                            {isCurrentTurn && (
+                              <span className="turn-indicator">→</span>
+                            )}
+                            {player.username}
+                          </span>
+                          {room.status === "playing" && (
+                            <span className="hand-count">
+                              {player.hand.length} card
+                              {player.hand.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {player.isHost && (
+                            <span className="host-badge">Host</span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              {room.status === "playing" && room.gameState && (
+                <div className="section game-info">
+                  <div className="info-row">
+                    <span>
+                      Direction: {room.gameState.direction === 1
+                        ? "→ Clockwise"
+                        : "← Counter-clockwise"}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {room.status === "waiting"
+                ? (
+                  <div className="section">
+                    <div className="info">
+                      {room.players.length >= 2
+                        ? "Ready to start the game when the host presses Start."
+                        : "Need at least 2 players to start the game."}
+                    </div>
+                    {isHost && room.players.length >= 2 && (
+                      <button className="button" onClick={handleStartGame}>
+                        Start game
+                      </button>
+                    )}
+                  </div>
+                )
+                : (
+                  <div className="section">
+                    <h2>Game board</h2>
+                    <div className="info">
+                      Current turn: {currentPlayer?.username ?? "N/A"}
+                    </div>
+                    <div className="game-summary">
+                      <div>
+                        Top card:{" "}
+                        <strong>{room.gameState.currentCard.value}</strong> (
+                        {room.gameState.currentCard.color})
+                      </div>
+                      <div>Current color: {room.gameState.currentColor}</div>
+                      <div>Deck: {deckCount} cards</div>
+                      <div>Discard: {discardCount} cards</div>
+                      <div>Your hand: {handCount} cards</div>
+                    </div>
+
+                    {needsColorSelection && (
+                      <div className="color-picker">
+                        <div className="info">
+                          {isColorChooser
+                            ? "Choose a color for the wild card:"
+                            : "Waiting for the wild card player to choose a color..."}
+                        </div>
+                        {isColorChooser && (
+                          <div className="color-options">
+                            <button
+                              className="color-btn color-btn-red"
+                              onClick={() => handleChooseColor("red")}
+                              disabled={selectingColor}
+                            >
+                              Red
+                            </button>
+                            <button
+                              className="color-btn color-btn-yellow"
+                              onClick={() => handleChooseColor("yellow")}
+                              disabled={selectingColor}
+                            >
+                              Yellow
+                            </button>
+                            <button
+                              className="color-btn color-btn-green"
+                              onClick={() => handleChooseColor("green")}
+                              disabled={selectingColor}
+                            >
+                              Green
+                            </button>
+                            <button
+                              className="color-btn color-btn-blue"
+                              onClick={() => handleChooseColor("blue")}
+                              disabled={selectingColor}
+                            >
+                              Blue
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="section">
+                      <div className="info">
+                        {room.status === "ended"
+                          ? `Winner: ${winner?.username ?? "Unknown"}`
+                          : isYourTurn
+                          ? "Your turn: play a card or draw."
+                          : `Waiting for ${currentPlayer?.username}'s turn.`}
+                      </div>
+                      {room.status !== "ended" && (
+                        <div className="hand-grid">
+                          {currentUser?.hand?.map((card) => (
+                            <button
+                              key={card.id}
+                              className={`card-item card-${card.color}`}
+                              onClick={() => handlePlayCard(card.id)}
+                              disabled={!isYourTurn}
+                            >
+                              <div className="card-value">{card.value}</div>
+                              <div className="card-color">{card.color}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {room.status !== "ended" && (
+                        <button
+                          className="button"
+                          onClick={handleDrawCard}
+                          disabled={!isYourTurn}
+                        >
+                          Draw card
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
-          </div>
-        )}
+          )
+          : (
+            <div className="section">
+              <div className="panel">
+                <button
+                  className="button"
+                  onClick={handleCreateRoom}
+                  disabled={creating || !socket?.connected}
+                >
+                  {creating ? "Creating room..." : "Create room"}
+                </button>
+              </div>
+              <div className="panel">
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value)}
+                  placeholder="Enter room code"
+                  className="input"
+                />
+                <button
+                  className="button"
+                  onClick={handleJoinRoom}
+                  disabled={joining || !socket?.connected}
+                >
+                  {joining ? "Joining..." : "Join room"}
+                </button>
+              </div>
+            </div>
+          )}
 
         {error && <div className="error">{error}</div>}
       </div>

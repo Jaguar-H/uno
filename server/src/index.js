@@ -304,6 +304,10 @@ io.on('connection', (socket) => {
     }
 
     const { gameState } = room;
+    if (gameState.pendingAction) {
+      return callback?.({ error: 'Finish the pending action before playing a card.' });
+    }
+
     if (room.players[gameState.currentTurnIndex].socketId !== socket.id) {
       return callback?.({ error: 'It is not your turn.' });
     }
@@ -387,9 +391,18 @@ io.on('connection', (socket) => {
       return callback?.({ error: 'No active game found.' });
     }
 
+    const player = room.players.find((playerItem) => playerItem.socketId === socket.id);
+    if (!player) {
+      return callback?.({ error: 'Player not found in room.' });
+    }
+
     const { gameState } = room;
     if (!gameState.pendingAction || gameState.pendingAction.type !== 'choose-color') {
       return callback?.({ error: 'No color selection pending.' });
+    }
+
+    if (gameState.pendingAction.playerId !== player.id) {
+      return callback?.({ error: 'Only the player who played the wild card can choose a color.' });
     }
 
     const validColors = ['red', 'yellow', 'green', 'blue'];
@@ -399,6 +412,7 @@ io.on('connection', (socket) => {
 
     gameState.currentColor = color;
     gameState.pendingAction = null;
+    rotateTurn(room, 1);
 
     emitRoomUpdate(io, room);
     callback?.({ room });
@@ -416,6 +430,10 @@ io.on('connection', (socket) => {
     }
 
     const { gameState } = room;
+    if (gameState.pendingAction) {
+      return callback?.({ error: 'Finish the pending action before drawing a card.' });
+    }
+
     if (room.players[gameState.currentTurnIndex].socketId !== socket.id) {
       return callback?.({ error: 'It is not your turn.' });
     }

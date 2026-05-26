@@ -8,5 +8,8 @@
   "scripts": {
     "dev:server": "npm --workspace server run dev",
     "dev:client": "npm --workspace client run dev"
+  },
+  "dependencies": {
+    "i": "^0.3.7"
   }
 }
