@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import GameTable from "./components/GameTable";
+import WinnerScreen from "./components/WinnerScreen";
+import LoserScreen from "./components/LoserScreen";
 
 const SERVER_URL = "http://localhost:4000";
 
@@ -203,6 +205,18 @@ function App() {
     );
   };
 
+  const handlePlayAgain = () => {
+    setRoom(null);
+    setError("");
+  };
+
+  const handleExit = () => {
+    setRoom(null);
+    setLoggedIn(false);
+    setUsername("");
+    setError("");
+  };
+
   const currentPlayer = room?.gameState
     ? room.players[room.gameState.currentTurnIndex]
     : null;
@@ -216,7 +230,7 @@ function App() {
   const pendingChooserId = room?.gameState?.pendingAction?.playerId;
   const isColorChooser = Boolean(
     room?.gameState?.pendingAction?.type === "choose-color" &&
-      currentUser?.id === pendingChooserId,
+    currentUser?.id === pendingChooserId,
   );
   const needsColorSelection = Boolean(
     room?.gameState?.pendingAction?.type === "choose-color",
@@ -227,8 +241,8 @@ function App() {
   const connectionLabel = connecting
     ? "Connecting to server..."
     : connected
-    ? "Connected to server"
-    : "Server offline";
+      ? "Connected to server"
+      : "Server offline";
   const handCount = currentUser?.hand?.length ?? 0;
   const deckCount = room?.gameState?.deck?.length ?? 0;
   const discardCount = room?.gameState?.discardPile?.length ?? 0;
@@ -243,141 +257,162 @@ function App() {
         <h1>UNO Multiplayer</h1>
         <div className="status">{connectionLabel}</div>
 
-        {!loggedIn
-          ? (
-            <form onSubmit={handleLogin} className="form">
+        {!loggedIn ? (
+          <form onSubmit={handleLogin} className="form">
+            <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Enter a username"
+              className="input"
+            />
+            <button type="submit" className="button">
+              Continue
+            </button>
+          </form>
+        ) : room ? (
+          <div>
+            <div className="room-header">
+              <div>
+                <div className="room-label">Room code</div>
+                <div className="room-code">{room.code}</div>
+              </div>
+              <div className="room-status">
+                {room.status === "playing"
+                  ? "Game in progress"
+                  : "Waiting for players"}
+              </div>
+            </div>
+
+            <div className="section">
+              <h2>Players</h2>
+              <ul className="player-list">
+                {room.players.map((player, index) => {
+                  const isCurrentTurn =
+                    room.gameState && room.gameState.currentTurnIndex === index;
+                  return (
+                    <li
+                      key={player.id}
+                      className={`player-item ${
+                        isCurrentTurn ? "active-turn" : ""
+                      }`}
+                    >
+                      <div className="player-info">
+                        <span className="player-name">
+                          {isCurrentTurn && (
+                            <span className="turn-indicator">→</span>
+                          )}
+                          {player.username}
+                        </span>
+                        {room.status === "playing" && (
+                          <span className="hand-count">
+                            {player.hand.length} card
+                            {player.hand.length !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {player.isHost && (
+                          <span className="host-badge">Host</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {room.status === "playing" && room.gameState && (
+              <div className="section game-info">
+                <div className="info-row">
+                  <span>
+                    Direction:{" "}
+                    {room.gameState.direction === 1
+                      ? "→ Clockwise"
+                      : "← Counter-clockwise"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {room.status === "ended" && room.gameState?.winner
+              ? (
+                winner
+                  ? (
+                    currentUser?.id === winner.id
+                      ? (
+                        <WinnerScreen
+                          winner={winner}
+                          currentUser={currentUser}
+                          room={room}
+                          onPlayAgain={handlePlayAgain}
+                          onExit={handleExit}
+                        />
+                      )
+                      : (
+                        <LoserScreen
+                          winner={winner}
+                          currentUser={currentUser}
+                          room={room}
+                          onPlayAgain={handlePlayAgain}
+                          onExit={handleExit}
+                        />
+                      )
+                  )
+                  : null
+              )
+              : room.status === "waiting" ? (
+                <div className="section">
+                  <div className="info">
+                    {room.players.length >= 2
+                      ? "Ready to start the game when the host presses Start."
+                      : "Need at least 2 players to start the game."}
+                  </div>
+                  {isHost && room.players.length >= 2 && (
+                    <button className="button" onClick={handleStartGame}>
+                      Start game
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <GameTable
+                  room={room}
+                  username={username}
+                  onPlayCard={handlePlayCard}
+                  onDrawCard={handleDrawCard}
+                  onChooseColor={handleChooseColor}
+                  isColorChooser={isColorChooser}
+                  selectingColor={selectingColor}
+                />
+              )}
+          </div>
+        ) : (
+          <div className="section">
+            <div className="panel">
+              <button
+                className="button"
+                onClick={handleCreateRoom}
+                disabled={creating || !connected}
+              >
+                {creating ? "Creating room..." : "Create room"}
+              </button>
+            </div>
+            <div className="panel">
               <input
                 type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="Enter a username"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder="Enter room code"
                 className="input"
               />
-              <button type="submit" className="button">
-                Continue
+              <button
+                className="button"
+                onClick={handleJoinRoom}
+                disabled={joining || !connected}
+              >
+                {joining ? "Joining..." : "Join room"}
               </button>
-            </form>
-          )
-          : room
-          ? (
-            <div>
-              <div className="room-header">
-                <div>
-                  <div className="room-label">Room code</div>
-                  <div className="room-code">{room.code}</div>
-                </div>
-                <div className="room-status">
-                  {room.status === "playing"
-                    ? "Game in progress"
-                    : "Waiting for players"}
-                </div>
-              </div>
-
-              <div className="section">
-                <h2>Players</h2>
-                <ul className="player-list">
-                  {room.players.map((player, index) => {
-                    const isCurrentTurn = room.gameState &&
-                      room.gameState.currentTurnIndex === index;
-                    return (
-                      <li
-                        key={player.id}
-                        className={`player-item ${
-                          isCurrentTurn ? "active-turn" : ""
-                        }`}
-                      >
-                        <div className="player-info">
-                          <span className="player-name">
-                            {isCurrentTurn && (
-                              <span className="turn-indicator">→</span>
-                            )}
-                            {player.username}
-                          </span>
-                          {room.status === "playing" && (
-                            <span className="hand-count">
-                              {player.hand.length} card
-                              {player.hand.length !== 1 ? "s" : ""}
-                            </span>
-                          )}
-                          {player.isHost && (
-                            <span className="host-badge">Host</span>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {room.status === "playing" && room.gameState && (
-                <div className="section game-info">
-                  <div className="info-row">
-                    <span>
-                      Direction: {room.gameState.direction === 1
-                        ? "→ Clockwise"
-                        : "← Counter-clockwise"}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {room.status === "waiting"
-                ? (
-                  <div className="section">
-                    <div className="info">
-                      {room.players.length >= 2
-                        ? "Ready to start the game when the host presses Start."
-                        : "Need at least 2 players to start the game."}
-                    </div>
-                    {isHost && room.players.length >= 2 && (
-                      <button className="button" onClick={handleStartGame}>
-                        Start game
-                      </button>
-                    )}
-                  </div>
-                )
-                : (
-                  <GameTable
-                    room={room}
-                    username={username}
-                    onPlayCard={handlePlayCard}
-                    onDrawCard={handleDrawCard}
-                    onChooseColor={handleChooseColor}
-                    isColorChooser={isColorChooser}
-                    selectingColor={selectingColor}
-                  />
-                )}
             </div>
-          )
-          : (
-            <div className="section">
-              <div className="panel">
-                <button
-                  className="button"
-                  onClick={handleCreateRoom}
-                  disabled={creating || !connected}
-                >
-                  {creating ? "Creating room..." : "Create room"}
-                </button>
-              </div>
-              <div className="panel">
-                <input
-                  type="text"
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value)}
-                  placeholder="Enter room code"
-                  className="input"
-                />
-                <button
-                  className="button"
-                  onClick={handleJoinRoom}
-                  disabled={joining || !connected}
-                >
-                  {joining ? "Joining..." : "Join room"}
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
+        )}
 
         {error && <div className="error">{error}</div>}
       </div>

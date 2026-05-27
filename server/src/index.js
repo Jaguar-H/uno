@@ -304,6 +304,10 @@ io.on('connection', (socket) => {
     }
 
     const { gameState } = room;
+    if (gameState.winner) {
+      return callback?.({ error: 'Game has already ended.' });
+    }
+
     if (gameState.pendingAction) {
       return callback?.({ error: 'Finish the pending action before playing a card.' });
     }
@@ -397,6 +401,10 @@ io.on('connection', (socket) => {
     }
 
     const { gameState } = room;
+    if (gameState.winner) {
+      return callback?.({ error: 'Game has already ended.' });
+    }
+
     if (!gameState.pendingAction || gameState.pendingAction.type !== 'choose-color') {
       return callback?.({ error: 'No color selection pending.' });
     }
@@ -430,6 +438,10 @@ io.on('connection', (socket) => {
     }
 
     const { gameState } = room;
+    if (gameState.winner) {
+      return callback?.({ error: 'Game has already ended.' });
+    }
+
     if (gameState.pendingAction) {
       return callback?.({ error: 'Finish the pending action before drawing a card.' });
     }
